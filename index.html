@@ -7,156 +7,66 @@
     <script src="https://unpkg.com/html5-qrcode@latest/html5-qrcode.min.js"></script>
     <style>
         body { font-family: Arial, sans-serif; padding: 10px; margin: 0; background: #f4f4f9; }
-        #reader-container { position: relative; width: 100%; max-width: 500px; margin: 0 auto; background: #000; border-radius: 12px; overflow: hidden; min-height: 280px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
-        #reader { width: 100%; height: 100%; }
-        .scan-line { position: absolute; top: 50%; left: 10%; width: 80%; height: 3px; background: linear-gradient(90deg, transparent, #00ff00, transparent); box-shadow: 0 0 15px #00ff00; z-index: 10; pointer-events: none; animation: scan 2s linear infinite; }
-        @keyframes scan { 0% { top: 30%; } 100% { top: 70%; } }
+        #reader-container { position: relative; width: 100%; max-width: 500px; margin: 0 auto; background: #000; border-radius: 12px; overflow: hidden; min-height: 280px; }
+        #reader { width: 100%; }
         .form-group { margin: 15px 0; padding: 15px; background: #fff; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
         input[type="text"] { width: 100%; padding: 12px; margin: 8px 0; box-sizing: border-box; font-size: 17px; border: 1px solid #ccc; border-radius: 6px; }
         button { width: 100%; padding: 14px; margin: 8px 0; font-size: 16px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; }
         .btn-start { background: #6f42c1; color: white; }
-        .btn-torch { background: #ffc107; color: #000; }
-        .btn-file { background: #17a2b8; color: white; }
         .btn-add { background: #28a745; color: white; }
         .btn-sync { background: #007bff; color: white; }
-        .btn-clear { background: #dc3545; color: white; }
         .data-item { background: #f8f9fa; padding: 10px; margin: 5px 0; border-radius: 6px; border-left: 4px solid #28a745; }
     </style>
 </head>
 <body>
     <button class="btn-start" onclick="initScanner()">📷 BẬT CAMERA</button>
-    <div id="reader-container">
-        <div id="reader"></div>
-        <div class="scan-line"></div>
-    </div>
+    <div id="reader-container"><div id="reader"></div></div>
 
     <div class="form-group">
-        <button class="btn-torch" onclick="toggleTorch()">🔦 BẬT/TẮT FLASH</button>
-        <button class="btn-file" onclick="scanFromFile()">📁 QUÉT TỪ ẢNH</button>
-
-        <label><strong>Mã UPC / Barcode:</strong></label>
-        <input type="text" id="upc-input" placeholder="Quét hoặc nhập tay mã UPC..." style="font-size: 18px; font-weight: bold;">
-
+        <label><strong>Mã UPC:</strong></label>
+        <input type="text" id="upc-input" placeholder="Quét mã vạch...">
         <label><strong>Mã SKU:</strong></label>
-        <input type="text" id="sku-input" placeholder="Nhập SKU và nhấn Enter..." style="font-size: 18px;">
-
+        <input type="text" id="sku-input" placeholder="Nhập SKU...">
         <button class="btn-add" onclick="saveToLocal()">✅ LƯU TẠM (Offline)</button>
     </div>
 
     <button class="btn-sync" onclick="syncToSheet()">🔄 ĐỒNG BỘ LÊN GOOGLE SHEET</button>
-    <button class="btn-clear" onclick="clearLocalData()">🗑️ XÓA TẤT CẢ DỮ LIỆU CHỜ</button>
 
     <div class="form-group">
-        <h3>Dữ liệu chờ đồng bộ: <span id="count" style="color: red;">0</span> mục</h3>
+        <h3>Dữ liệu chờ: <span id="count" style="color: red;">0</span></h3>
         <div id="data-items"></div>
     </div>
 
     <script>
+        // LƯU Ý: Thay link này bằng link Web App sau khi nhấn "Deploy" mới nhất
         const scriptURL = 'https://script.google.com/macros/s/AKfycbx-6CWFCM0x3JT0lR5mmuZkhVqwvFBlUaW9SbWJI6Qy2tm8ykyagSwr-IQIy80OG906/exec';
         
         let localData = [];
         let html5QrcodeScanner = null;
-        let isTorchOn = false;
 
         function initScanner() {
             if (html5QrcodeScanner) html5QrcodeScanner.clear().catch(() => {});
-
             html5QrcodeScanner = new Html5Qrcode("reader");
 
-            const config = {
-                fps: 20,
-                qrbox: { width: 420, height: 160 },
-                aspectRatio: 1.0,   // Thay đổi để dễ tương thích hơn
-                formatsToSupport: [
-                    Html5QrcodeSupportedFormats.UPC_A,
-                    Html5QrcodeSupportedFormats.UPC_E,
-                    Html5QrcodeSupportedFormats.EAN_13,
-                    Html5QrcodeSupportedFormats.EAN_8,
-                    Html5QrcodeSupportedFormats.CODE_128,
-                    Html5QrcodeSupportedFormats.CODE_39
-                ],
-                experimentalFeatures: { useBarCodeDetectorIfSupported: true }
-            };
-
-            const cameraConfig = {
-                facingMode: "environment",
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
-            };
-
-            html5QrcodeScanner.start(cameraConfig, config, onScanSuccess)
-                .then(() => console.log("✅ Camera started"))
-                .catch(err => {
-                    console.error(err);
-                    let msg = "Không mở được camera.\n\n";
-                    if (err.name === "NotAllowedError") msg += "❌ Chưa cấp quyền Camera. Vui lòng cho phép.";
-                    else if (err.name === "NotReadableError") msg += "❌ Camera bị chiếm dụng. Đóng các app khác (Camera, Zoom...).";
-                    else if (err.name === "NotFoundError") msg += "❌ Không tìm thấy camera.";
-                    else msg += "Lỗi: " + err.message;
-                    alert(msg);
-                });
-        }
-
-        function toggleTorch() {
-            if (!html5QrcodeScanner) return;
-            isTorchOn = !isTorchOn;
-            html5QrcodeScanner.applyVideoConstraints({ advanced: [{ torch: isTorchOn }] })
-                .catch(() => alert("Không hỗ trợ Flash trên thiết bị này."));
-        }
-
-        function scanFromFile() {
-            if (!html5QrcodeScanner) html5QrcodeScanner = new Html5Qrcode("reader");
-            html5QrcodeScanner.scanFile(true)
-                .then(text => {
-                    document.getElementById('upc-input').value = text;
-                    playBeep();
+            const config = { fps: 15, qrbox: { width: 250, height: 100 } };
+            
+            html5QrcodeScanner.start(
+                { facingMode: "environment" }, 
+                config, 
+                (decodedText) => {
+                    document.getElementById('upc-input').value = decodedText;
                     document.getElementById('sku-input').focus();
-                })
-                .catch(err => alert("Quét từ ảnh thất bại: " + err));
-        }
-
-        function playBeep() {
-            try {
-                const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                const osc = ctx.createOscillator();
-                osc.frequency.value = 1000;
-                osc.connect(ctx.destination);
-                osc.start(); osc.stop(ctx.currentTime + 0.08);
-            } catch(e) {}
-        }
-
-        function onScanSuccess(decodedText) {
-            const upcInput = document.getElementById('upc-input');
-            if (upcInput.value !== decodedText) {
-                playBeep();
-                upcInput.value = decodedText;
-                html5QrcodeScanner.pause(true);
-                document.getElementById('sku-input').focus();
-                setTimeout(() => {
-                    if (!document.getElementById('sku-input').value.trim()) html5QrcodeScanner.resume();
-                }, 1800);
-            }
-        }
-
-        function setupKeyboard() {
-            const skuInput = document.getElementById('sku-input');
-            const upcInput = document.getElementById('upc-input');
-
-            skuInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') saveToLocal();
-            });
-
-            upcInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter' && this.value.trim()) skuInput.focus();
-            });
+                    html5QrcodeScanner.pause(true);
+                }
+            ).catch(err => alert("Lỗi Camera: Hãy đảm bảo web chạy trên HTTPS và đã cấp quyền."));
         }
 
         function saveToLocal() {
             const upc = document.getElementById('upc-input').value.trim();
             const sku = document.getElementById('sku-input').value.trim();
-            if (!upc || !sku) return alert("Vui lòng nhập đầy đủ UPC và SKU!");
+            if (!upc || !sku) return alert("Vui lòng nhập đủ UPC và SKU!");
             
-            localData.unshift({ upc, sku, time: new Date().toLocaleString('vi-VN') });
+            localData.unshift({ upc, sku, time: new Date().toLocaleTimeString() });
             updateUI();
             
             document.getElementById('upc-input').value = '';
@@ -167,50 +77,35 @@
         function updateUI() {
             document.getElementById('count').innerText = localData.length;
             const container = document.getElementById('data-items');
-            container.innerHTML = '';
-            localData.forEach(item => {
-                const div = document.createElement('div');
-                div.className = 'data-item';
-                div.innerHTML = `<strong>${item.upc}</strong> → ${item.sku}<small style="color:#666;display:block;">${item.time}</small>`;
-                container.appendChild(div);
-            });
+            container.innerHTML = localData.map(item => `<div class="data-item"><strong>${item.upc}</strong> - ${item.sku}</div>`).join('');
         }
 
         async function syncToSheet() {
-            if (localData.length === 0) return alert("Không có dữ liệu để đồng bộ!");
+            if (localData.length === 0) return alert("Không có dữ liệu!");
+            const btn = document.querySelector('.btn-sync');
+            btn.innerText = "ĐANG ĐỒNG BỘ...";
 
             try {
                 const response = await fetch(scriptURL, {
                     method: 'POST',
-                    body: JSON.stringify(localData),
                     headers: { 'Content-Type': 'application/json' },
-                    mode: 'no-cors'   // Thử bypass một số lỗi CORS
+                    body: JSON.stringify(localData)
                 });
-
-                // Vì mode no-cors không trả response text được, ta coi như thành công nếu không throw
-                alert(`✅ Đồng bộ thành công ${localData.length} mục!`);
-                localData = [];
-                updateUI();
+                
+                const result = await response.json();
+                if (result.status === "success") {
+                    alert("✅ Đồng bộ thành công!");
+                    localData = [];
+                    updateUI();
+                } else {
+                    throw new Error("Server từ chối: " + JSON.stringify(result));
+                }
             } catch (err) {
-                console.error("Sync Error:", err);
-                alert(`❌ Lỗi đồng bộ: ${err.message || 'Kiểm tra kết nối mạng và URL Google Script'}`);
+                alert("❌ Lỗi đồng bộ: " + err.message);
+            } finally {
+                btn.innerText = "🔄 ĐỒNG BỘ LÊN GOOGLE SHEET";
             }
         }
-
-        function clearLocalData() {
-            if (confirm("Xóa tất cả dữ liệu chờ?")) {
-                localData = [];
-                updateUI();
-            }
-        }
-
-        window.addEventListener('beforeunload', () => {
-            if (html5QrcodeScanner) html5QrcodeScanner.clear();
-        });
-
-        window.onload = () => {
-            setupKeyboard();
-        };
     </script>
 </body>
 </html>
