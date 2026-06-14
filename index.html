@@ -6,85 +6,34 @@
     <title>Scanner Kho Hàng - Pro</title>
     <script src="https://unpkg.com/html5-qrcode@latest/html5-qrcode.min.js"></script>
     <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            padding: 10px; 
-            margin: 0; 
-            background: #f4f4f9; 
-        }
+        body { font-family: Arial, sans-serif; padding: 10px; margin: 0; background: #f4f4f9; }
         #reader-container { 
-            position: relative; 
-            width: 100%; 
-            max-width: 500px; 
-            margin: 0 auto; 
-            background: #000; 
-            border-radius: 12px; 
-            overflow: hidden; 
-            min-height: 280px;
+            position: relative; width: 100%; max-width: 500px; margin: 0 auto; 
+            background: #000; border-radius: 12px; overflow: hidden; min-height: 280px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         }
         #reader { width: 100%; height: 100%; }
         .scan-line { 
-            position: absolute; 
-            top: 50%; 
-            left: 10%; 
-            width: 80%; 
-            height: 3px; 
+            position: absolute; top: 50%; left: 10%; width: 80%; height: 3px; 
             background: linear-gradient(90deg, transparent, #00ff00, transparent); 
-            box-shadow: 0 0 15px #00ff00; 
-            z-index: 10; 
-            pointer-events: none;
+            box-shadow: 0 0 15px #00ff00; z-index: 10; pointer-events: none;
             animation: scan 2s linear infinite;
         }
-        @keyframes scan {
-            0% { top: 30%; }
-            100% { top: 70%; }
-        }
-        .form-group { 
-            margin: 15px 0; 
-            padding: 15px; 
-            background: #fff; 
-            border-radius: 10px; 
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1); 
-        }
-        input[type="text"] { 
-            width: 100%; 
-            padding: 12px; 
-            margin: 8px 0; 
-            box-sizing: border-box; 
-            font-size: 17px; 
-            border: 1px solid #ccc; 
-            border-radius: 6px; 
-        }
-        button { 
-            width: 100%; 
-            padding: 14px; 
-            margin: 8px 0; 
-            font-size: 16px; 
-            font-weight: bold; 
-            border: none; 
-            border-radius: 8px; 
-            cursor: pointer; 
-        }
+        @keyframes scan { 0% { top: 30%; } 100% { top: 70%; } }
+        .form-group { margin: 15px 0; padding: 15px; background: #fff; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        input[type="text"] { width: 100%; padding: 12px; margin: 8px 0; box-sizing: border-box; font-size: 17px; border: 1px solid #ccc; border-radius: 6px; }
+        button { width: 100%; padding: 14px; margin: 8px 0; font-size: 16px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; }
         .btn-start { background: #6f42c1; color: white; }
         .btn-torch { background: #ffc107; color: #000; }
         .btn-file { background: #17a2b8; color: white; }
         .btn-add { background: #28a745; color: white; }
         .btn-sync { background: #007bff; color: white; }
         .btn-clear { background: #dc3545; color: white; }
-
-        .data-item {
-            background: #f8f9fa;
-            padding: 10px;
-            margin: 5px 0;
-            border-radius: 6px;
-            border-left: 4px solid #28a745;
-        }
+        .data-item { background: #f8f9fa; padding: 10px; margin: 5px 0; border-radius: 6px; border-left: 4px solid #28a745; }
     </style>
 </head>
 <body>
     <button class="btn-start" onclick="initScanner()">📷 BẬT CAMERA</button>
-
     <div id="reader-container">
         <div id="reader"></div>
         <div class="scan-line"></div>
@@ -112,7 +61,7 @@
     </div>
 
     <script>
-        const scriptURL = 'https://script.google.com/macros/s/AKfycbwUiMHSlNMEs5pLvtefQh0bgfgDwRcJjpsnjiAS10Omy83xoOwUKwKDrD-xcORhRXth/exec';
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbx-6CWFCM0x3JT0lR5mmuZkhVqwvFBlUaW9SbWJI6Qy2tm8ykyagSwr-IQIy80OG906/exec';
         
         let localData = [];
         let html5QrcodeScanner = null;
@@ -140,10 +89,11 @@
                 experimentalFeatures: { useBarCodeDetectorIfSupported: true }
             };
 
-            const cameraConfig = { 
-                facingMode: { exact: "environment" },
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
+            // CẢI TIẾN QUAN TRỌNG: Không dùng "exact" để tránh lỗi trên mobile
+            const cameraConfig = {
+                facingMode: "environment",   // Ưu tiên camera sau, không exact
+                width: { ideal: 1280, min: 720 },
+                height: { ideal: 720, min: 480 }
             };
 
             html5QrcodeScanner.start(cameraConfig, config, onScanSuccess)
@@ -156,13 +106,13 @@
                     let message = "Không thể mở camera.\n\n";
                     
                     if (err.name === "NotAllowedError" || err.message.includes("Permission")) {
-                        message += "❌ Bạn chưa cấp quyền Camera.\nVui lòng cho phép và tải lại trang.";
+                        message += "❌ Chưa cấp quyền Camera.\nVui lòng cho phép và tải lại trang.";
                     } else if (err.name === "NotFoundError") {
                         message += "❌ Không tìm thấy camera.";
                     } else if (err.name === "NotReadableError") {
-                        message += "❌ Camera đang bị chiếm dụng bởi ứng dụng khác.\nĐóng app Camera/Zoom và thử lại.";
+                        message += "❌ Camera đang bị chiếm dụng (bởi app khác hoặc tab khác).\nĐóng hết và thử lại.";
                     } else if (location.protocol !== "https:" && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
-                        message += "❌ Phải chạy trên HTTPS.\nKhông mở file HTML trực tiếp từ máy tính.";
+                        message += "❌ Phải truy cập qua HTTPS (không mở file trực tiếp).";
                     } else {
                         message += "Lỗi: " + err.message;
                     }
@@ -171,20 +121,17 @@
                 });
         }
 
+        // Các hàm còn lại giữ nguyên (toggleTorch, scanFromFile, playBeep, onScanSuccess, setupKeyboard, saveToLocal, updateUI, syncToSheet, clearLocalData...)
+
         function toggleTorch() {
             if (!html5QrcodeScanner) return;
             isTorchOn = !isTorchOn;
-            html5QrcodeScanner.applyVideoConstraints({
-                advanced: [{ torch: isTorchOn }]
-            }).catch(() => {
-                alert("Thiết bị không hỗ trợ Flash.");
-            });
+            html5QrcodeScanner.applyVideoConstraints({ advanced: [{ torch: isTorchOn }] })
+                .catch(() => alert("Thiết bị không hỗ trợ Flash."));
         }
 
         function scanFromFile() {
-            if (!html5QrcodeScanner) {
-                html5QrcodeScanner = new Html5Qrcode("reader");
-            }
+            if (!html5QrcodeScanner) html5QrcodeScanner = new Html5Qrcode("reader");
             html5QrcodeScanner.scanFile(true)
                 .then(decodedText => {
                     document.getElementById('upc-input').value = decodedText;
@@ -192,9 +139,7 @@
                     document.getElementById('sku-input').focus();
                     alert("✅ Đã quét thành công từ ảnh!");
                 })
-                .catch(err => {
-                    alert("Không quét được từ ảnh. Vui lòng thử ảnh khác.\n\n" + err);
-                });
+                .catch(err => alert("Không quét được từ ảnh.\n" + err));
         }
 
         function playBeep() {
@@ -213,10 +158,8 @@
             if (upcInput.value !== decodedText) {
                 playBeep();
                 upcInput.value = decodedText;
-                
                 html5QrcodeScanner.pause(true);
                 document.getElementById('sku-input').focus();
-                
                 setTimeout(() => {
                     if (!document.getElementById('sku-input').value.trim()) {
                         html5QrcodeScanner.resume();
@@ -228,33 +171,18 @@
         function setupKeyboard() {
             const skuInput = document.getElementById('sku-input');
             const upcInput = document.getElementById('upc-input');
-
-            skuInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') saveToLocal();
-            });
-
-            upcInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter' && this.value.trim()) {
-                    skuInput.focus();
-                }
-            });
+            skuInput.addEventListener('keypress', e => { if (e.key === 'Enter') saveToLocal(); });
+            upcInput.addEventListener('keypress', e => { if (e.key === 'Enter' && this.value.trim()) skuInput.focus(); });
         }
 
         function saveToLocal() {
             const upc = document.getElementById('upc-input').value.trim();
             const sku = document.getElementById('sku-input').value.trim();
-
-            if (!upc || !sku) {
-                alert("Vui lòng nhập đầy đủ UPC và SKU!");
-                return;
-            }
-
+            if (!upc || !sku) return alert("Vui lòng nhập đầy đủ UPC và SKU!");
             localData.unshift({ upc, sku, time: new Date().toLocaleString('vi-VN') });
             updateUI();
-            
             document.getElementById('upc-input').value = '';
             document.getElementById('sku-input').value = '';
-            
             if (html5QrcodeScanner) html5QrcodeScanner.resume();
         }
 
@@ -262,38 +190,27 @@
             document.getElementById('count').innerText = localData.length;
             const container = document.getElementById('data-items');
             container.innerHTML = '';
-
             localData.forEach(item => {
                 const div = document.createElement('div');
                 div.className = 'data-item';
-                div.innerHTML = `
-                    <strong>${item.upc}</strong> → ${item.sku}
-                    <small style="color:#666; display:block;">${item.time}</small>
-                `;
+                div.innerHTML = `<strong>${item.upc}</strong> → ${item.sku}<small style="color:#666; display:block;">${item.time}</small>`;
                 container.appendChild(div);
             });
         }
 
         async function syncToSheet() {
-            if (localData.length === 0) {
-                alert("Không có dữ liệu để đồng bộ!");
-                return;
-            }
-
+            if (localData.length === 0) return alert("Không có dữ liệu để đồng bộ!");
             try {
                 const response = await fetch(scriptURL, {
                     method: 'POST',
                     body: JSON.stringify(localData),
                     headers: { 'Content-Type': 'application/json' }
                 });
-
                 if (response.ok) {
                     alert(`✅ Đồng bộ thành công ${localData.length} mục!`);
                     localData = [];
                     updateUI();
-                } else {
-                    throw new Error("Lỗi server");
-                }
+                } else throw new Error("Lỗi server");
             } catch (err) {
                 alert("❌ Lỗi mạng! Dữ liệu vẫn được giữ lại.");
                 console.error(err);
